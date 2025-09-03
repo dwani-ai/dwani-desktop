@@ -48,6 +48,9 @@ function validatePdf(filePath) {
     if (fileSizeMb > MAX_FILE_SIZE_MB) {
       return { valid: false, error: `File exceeds size limit of ${MAX_FILE_SIZE_MB}MB` };
     }
+    if (fileSizeMb === 0) {
+      return { valid: false, error: 'File is empty' };
+    }
     return { valid: true };
   } catch (err) {
     return { valid: false, error: `Error accessing file: ${err.message}` };
@@ -61,29 +64,42 @@ async function processSinglePdf(filePath) {
   }
   try {
     const fileContent = fs.readFileSync(filePath);
+    console.log(`Processing file: ${filePath}, size: ${fileContent.length} bytes`);
     const formData = new FormData();
-    formData.append('file', new Blob([fileContent]), path.basename(filePath));
+    formData.append('file', new Blob([fileContent], { type: 'application/pdf' }), path.basename(filePath));
     formData.append('prompt', 'Extract all text from this PDF.');
+    console.log('FormData prepared for /process_pdf');
     const response = await axios.post(API_URL_PDF, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 90000
     });
+    console.log('API response:', response.data);
     return response.data.extracted_text || {};
   } catch (err) {
-    console.error(`Failed to extract text from ${filePath}:`, err.message);
-    return { error: `Failed to extract text: ${err.message}` };
+    console.error(`Failed to extract text from ${filePath}:`, err.message, err.response?.data);
+    return { error: `Failed to extract text: ${err.message}${err.response?.data ? ` - ${JSON.stringify(err.response.data)}` : ''}` };
   }
 }
 
 ipcMain.handle('select-pdfs', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: [{ name: 'PDFs', extensions: ['pdf'] }]
-  });
-  if (result.canceled) {
-    return { error: 'No PDF selected' };
+  try {
+    console.log('Opening file picker dialog');
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [{ name: 'PDFs', extensions: ['pdf'] }],
+      buttonLabel: 'Select PDF',
+      title: 'Select a PDF File'
+    });
+    if (result.canceled) {
+      console.log('File picker cancelled by user');
+      return { error: 'No PDF selected' };
+    }
+    console.log('Selected file:', result.filePaths[0]);
+    return { pdfPath: result.filePaths[0] };
+  } catch (err) {
+    console.error('File picker error:', err.message);
+    return { error: `File picker failed: ${err.message}` };
   }
-  return { pdfPath: result.filePaths[0] };
 });
 
 ipcMain.handle('health-check', async () => {
@@ -91,6 +107,7 @@ ipcMain.handle('health-check', async () => {
     const response = await axios.get(API_URL_HEALTH, { timeout: 30000 });
     return response.data;
   } catch (err) {
+    console.error('Health check failed:', err.message);
     return { error: `API health check failed: ${err.message}` };
   }
 });
@@ -148,6 +165,7 @@ ipcMain.handle('process-message', async (event, { prompt, extractedText, session
     store.set(`sessions.${sessionId}.chatHistory`, chatHistory);
     return response.data;
   } catch (err) {
+    console.error('Message processing failed:', err.message);
     return { error: `Failed to process message: ${err.message}` };
   }
 });

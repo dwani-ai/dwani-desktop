@@ -21,24 +21,30 @@ async function healthCheck() {
 }
 
 async function selectPdfs() {
-  const result = await window.api.selectPdfs();
-  if (result.error) {
-    alert(result.error);
-    return;
+  document.getElementById('loading').style.display = 'block';
+  try {
+    const result = await window.api.selectPdfs();
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+    pdfFile = result.pdfPath && typeof result.pdfPath === 'string' ? result.pdfPath : '';
+    console.log('Selected PDF path:', pdfFile);
+    if (!pdfFile) {
+      alert('No valid PDF file selected');
+      return;
+    }
+    document.getElementById('selected-file').innerText = `Selected: ${pdfFile.split(/[\\/]/).pop()}`;
+    const processResult = await window.api.processPdfs(pdfFile, sessionId);
+    if (processResult.error) {
+      alert(`Error: ${processResult.error}`);
+      return;
+    }
+    extractedText = processResult.extractedText || {};
+    updateChatDisplay();
+  } finally {
+    document.getElementById('loading').style.display = 'none';
   }
-  pdfFile = result.pdfPath && typeof result.pdfPath === 'string' ? result.pdfPath : '';
-  console.log('Selected PDF path:', pdfFile);
-  if (!pdfFile) {
-    alert('No valid PDF file selected');
-    return;
-  }
-  document.getElementById('selected-file').innerText = `Selected: ${pdfFile.split(/[\\/]/).pop()}`;
-  const processResult = await window.api.processPdfs(pdfFile, sessionId);
-  if (processResult.error) {
-    alert(`Error: ${processResult.error}`);
-  }
-  extractedText = processResult.extractedText || {};
-  updateChatDisplay();
 }
 
 async function sendPrompt() {

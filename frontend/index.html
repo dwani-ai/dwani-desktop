@@ -13,6 +13,7 @@
       #settings { margin: 20px 0; }
       #instructions { margin: 20px 0; }
       #buttons { margin: 10px 0; }
+      #loading { display: none; margin: 10px 0; color: #555; }
     </style>
   </head>
   <body>
@@ -28,6 +29,7 @@
           <button onclick="saveConfig()">Save Config</button>
         </div>
         <button id="pdf-input" onclick="selectPdfs()">Select PDF</button>
+        <div id="loading">Processing PDF...</div>
         <div id="selected-file"></div>
         <div id="chatbot"></div>
         <textarea id="input" placeholder="Ask something about the document..."></textarea>
@@ -41,10 +43,11 @@
         <h3>Instructions</h3>
         <p>
           1. Click 'Select PDF' to upload a PDF document (max 10MB).<br>
-          2. Ask questions about the document in the chat box.<br>
-          3. The assistant will respond based on the document's content.<br>
-          4. Use 'Clear Chat' to reset the conversation history.<br>
-          5. Use 'New Chat' to start a new session (clears chat and PDF).
+          2. Wait for the PDF to process (a loading message will appear).<br>
+          3. Ask questions about the document in the chat box.<br>
+          4. The assistant will respond based on the document's content.<br>
+          5. Use 'Clear Chat' to reset the conversation history.<br>
+          6. Use 'New Chat' to start a new session (clears chat and PDF).
         </p>
       </div>
     </div>
