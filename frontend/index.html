@@ -1,29 +1,52 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>dwani.ai Discovery Desktop</title>
+    <title>Dwani Desktop</title>
     <style>
-      body { font-family: Arial; padding: 20px; }
-      #input { width: 100%; height: 100px; }
-      #output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
-      #settings { margin-top: 20px; }
+      body { font-family: Arial; padding: 20px; max-width: 1200px; margin: auto; }
+      #chatbot { height: calc(100vh - 200px); max-height: 800px; border: 1px solid #ccc; overflow-y: auto; padding: 10px; }
+      .message { margin: 10px; padding: 10px; border-radius: 5px; }
+      .user { background: #e6f3ff; }
+      .assistant { background: #f0f0f0; }
+      #input { width: 100%; height: 100px; resize: none; }
+      #pdf-input { margin: 10px 0; }
+      #settings { margin: 20px 0; }
+      #instructions { margin: 20px 0; }
+      #buttons { margin: 10px 0; }
     </style>
   </head>
   <body>
-    <h1>Discovery   </h1>
-    <div id="settings">
-      <label>DWANI API Key: <input id="apiKey" type="password"></label><br>
-      <label>DWANI API Endpoint: <input id="apiEndpoint" value="https://api.dwani.ai"></label><br>
-      <label>Model: <input id="model" value="gemma3"></label><br>
-      <button onclick="saveConfig()">Save Config</button>
+    <h1>📄 Document Chat - Query Your PDFs</h1>
+    <div style="display: flex;">
+      <div style="flex: 3;">
+        <div id="settings">
+          <label>API Endpoint: <input id="apiEndpoint" value="http://0.0.0.0:18889"></label><br>
+          <label>Model: <select id="model">
+            <option value="gemma3">gemma3</option>
+            <option value="gpt-oss">gpt-oss</option>
+          </select></label><br>
+          <button onclick="saveConfig()">Save Config</button>
+        </div>
+        <input type="file" id="pdf-input" accept=".pdf" multiple>
+        <div id="chatbot"></div>
+        <textarea id="input" placeholder="Ask something about the document..."></textarea>
+        <div id="buttons">
+          <button onclick="sendPrompt()">Send</button>
+          <button onclick="clearChat()">Clear Chat</button>
+          <button onclick="newChat()">New Chat</button>
+        </div>
+      </div>
+      <div style="flex: 1; margin-left: 20px;">
+        <h3>Instructions</h3>
+        <p>
+          1. Upload one or more PDF documents (max 10MB each).<br>
+          2. Ask questions about the documents in the chat box.<br>
+          3. The assistant will respond based on the documents' content.<br>
+          4. Use 'Clear Chat' to reset the conversation history.<br>
+          5. Use 'New Chat' to start a new session (clears chat and PDFs).
+        </p>
+      </div>
     </div>
-    <textarea id="input" placeholder="Enter your prompt"></textarea>
-    <div>
-      <label>Temperature: <input id="temperature" type="number" step="0.1" value="0.7"></label>
-      <label>Max Tokens: <input id="maxTokens" type="number" value="256"></label>
-    </div>
-    <button onclick="sendPrompt()">Send</button>
-    <div id="output">Response will appear here</div>
     <script src="renderer.js"></script>
   </body>
 </html>

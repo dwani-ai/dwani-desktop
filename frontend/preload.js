@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  runInference: (prompt, temperature, maxTokens) =>
-    ipcRenderer.invoke('run-inference', { prompt, temperature, maxTokens }),
-  saveConfig: (apiKey, apiEndpoint, model) =>
-    ipcRenderer.invoke('save-config', { apiKey, apiEndpoint, model })
+  healthCheck: () => ipcRenderer.invoke('health-check'),
+  processPdfs: (pdfPaths, sessionId) => ipcRenderer.invoke('process-pdfs', { pdfPaths, sessionId }),
+  processMessage: (prompt, extractedText, sessionId) => ipcRenderer.invoke('process-message', { prompt, extractedText, sessionId }),
+  clearSession: (sessionId) => ipcRenderer.invoke('clear-session', sessionId)
 });
