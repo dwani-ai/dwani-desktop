@@ -1,0 +1,20 @@
+{
+  "name": "dwani-desktop",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --mac --linux",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "dwani.ai",
+  "license": "MIT",
+  "description": "",
+  "dependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "node-addon-api": "^8.5.0",
+    "node-gyp": "^11.4.2"
+  }
+}
