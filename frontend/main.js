@@ -88,7 +88,8 @@ ipcMain.handle('select-pdfs', async () => {
       properties: ['openFile'],
       filters: [{ name: 'PDFs', extensions: ['pdf'] }],
       buttonLabel: 'Select PDF',
-      title: 'Select a PDF File'
+      title: 'Select a PDF File',
+      modal: true // Ensure dialog is modal to force focus and closure
     });
     if (result.canceled) {
       console.log('File picker cancelled by user');

@@ -21,6 +21,8 @@ async function healthCheck() {
 }
 
 async function selectPdfs() {
+  const pdfButton = document.getElementById('pdf-input');
+  pdfButton.disabled = true;
   document.getElementById('loading').style.display = 'block';
   try {
     const result = await window.api.selectPdfs();
@@ -44,6 +46,7 @@ async function selectPdfs() {
     updateChatDisplay();
   } finally {
     document.getElementById('loading').style.display = 'none';
+    pdfButton.disabled = false;
   }
 }
 
