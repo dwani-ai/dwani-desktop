@@ -2,21 +2,40 @@
   "name": "dwani-desktop",
   "version": "0.0.1",
   "main": "main.js",
+  "description": "A cross-platform desktop app for offline GPT-oss-20b inference",
   "scripts": {
     "start": "electron .",
     "build": {
-      "appId": "com.gptdesktop.app",
-      "files": ["main.js", "preload.js", "index.html", "renderer.js", "bin/**", "models/**"],
-      "win": { "target": "nsis" },
-      "mac": { "target": "dmg" },
-      "linux": { "target": ["AppImage", "deb"] }
+      "appId": "com.dwani.desktop.app",
+      "files": [
+        "main.js",
+        "preload.js",
+        "index.html",
+        "renderer.js",
+        "bin/**",
+        "models/**"
+      ],
+      "win": {
+        "icon": "icon.png",
+        "target": "nsis"
+      },
+      "mac": {
+        "target": "dmg"
+      },
+      "linux": {
+        "icon": "icon.png",
+        "category": "Productivity",
+        "target": [
+          "AppImage",
+          "deb"
+        ]
+      }
     },
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "dwani.ai",
   "license": "MIT",
-  "description": "",
   "dependencies": {
     "node-addon-api": "^8.5.0",
     "node-gyp": "^11.4.2"

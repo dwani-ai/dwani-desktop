@@ -1,8 +1,11 @@
 
+sudo apt-get update
+sudo apt-get install -y wine64
 
 sudo apt-get install nodejs npm
 
 sudo apt-get install build-essential cmake
+
 
 
 
@@ -20,4 +23,6 @@ npm install node-addon-api
 npm install node-gyp
 node-gyp configure build
 
-npx electron-builder --win --mac --linux
+npx electron-builder --win --linux
+
+// Issue with mac- dmgLicense
