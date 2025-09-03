@@ -8,16 +8,24 @@ const store = new Store();
 let mainWindow;
 
 app.whenReady().then(() => {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
-  mainWindow.loadFile('index.html');
+  try {
+    mainWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+    mainWindow.loadFile('index.html');
+  } catch (err) {
+    console.error('Failed to create window:', err);
+    app.quit();
+  }
+}).catch(err => {
+  console.error('App failed to start:', err);
+  app.quit();
 });
 
 ipcMain.handle('run-inference', async (event, { prompt, temperature, maxTokens }) => {
@@ -29,7 +37,7 @@ ipcMain.handle('run-inference', async (event, { prompt, temperature, maxTokens }
     const response = await axios.post(
       `${apiEndpoint}/chat/completions`,
       {
-        model: store.get('model', 'gpt-3.5-turbo'), // Default or user-configured model
+        model: store.get('model', 'gpt-3.5-turbo'),
         messages: [{ role: 'user', content: prompt }],
         temperature: temperature || 0.7,
         max_tokens: maxTokens || 256
@@ -48,10 +56,14 @@ ipcMain.handle('run-inference', async (event, { prompt, temperature, maxTokens }
 });
 
 ipcMain.handle('save-config', async (event, { apiKey, apiEndpoint, model }) => {
-  store.set('apiKey', apiKey);
-  store.set('apiEndpoint', apiEndpoint);
-  store.set('model', model);
-  return { success: true };
+  try {
+    store.set('apiKey', apiKey);
+    store.set('apiEndpoint', apiEndpoint);
+    store.set('model', model);
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
 });
 
 app.on('window-all-closed', () => {
