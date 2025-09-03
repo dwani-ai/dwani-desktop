@@ -31,7 +31,7 @@ app.whenReady().then(() => {
 ipcMain.handle('run-inference', async (event, { prompt, temperature, maxTokens }) => {
   try {
     const apiKey = store.get('apiKey', '');
-    const apiEndpoint = store.get('apiEndpoint', 'https://api.openai.com/v1');
+    const apiEndpoint = store.get('apiEndpoint', 'https://api.dwani.ai');
     if (!apiKey) throw new Error('API key not configured');
 
     const response = await axios.post(
