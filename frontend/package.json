@@ -2,11 +2,12 @@
   "name": "dwani-desktop",
   "version": "0.0.1",
   "main": "main.js",
-  "description": "A cross-platform desktop app for offline GPT-oss-20b inference",
+  "description": "dwani.ai - Discovery - Document Analytics",
   "scripts": {
     "start": "electron .",
     "build": {
       "appId": "com.dwani.desktop.app",
+      "asar": true,
       "files": [
         "main.js",
         "preload.js",
@@ -35,7 +36,10 @@
   "author": "dwani.ai",
   "license": "MIT",
   "dependencies": {
-    "node-addon-api": "^8.5.0",
-    "node-gyp": "^11.4.2"
+    "axios": "^1.11.0",
+    "electron-store": "^10.1.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
   }
 }
