@@ -11,9 +11,7 @@
         "main.js",
         "preload.js",
         "index.html",
-        "renderer.js",
-        "bin/**",
-        "models/**"
+        "renderer.js"
       ],
       "win": {
         "icon": "icon.png",

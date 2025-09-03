@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>GPT Desktop App</title>
+    <title>Dwani Desktop</title>
     <style>
       body { font-family: Arial; padding: 20px; }
       #input { width: 100%; height: 100px; }
       #output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+      #settings { margin-top: 20px; }
     </style>
   </head>
   <body>
-    <h1>GPT Desktop App</h1>
+    <h1>Dwani Desktop</h1>
+    <div id="settings">
+      <label>API Key: <input id="apiKey" type="password"></label><br>
+      <label>API Endpoint: <input id="apiEndpoint" value="https://api.openai.com/v1"></label><br>
+      <label>Model: <input id="model" value="gpt-3.5-turbo"></label><br>
+      <button onclick="saveConfig()">Save Config</button>
+    </div>
     <textarea id="input" placeholder="Enter your prompt"></textarea>
+    <div>
+      <label>Temperature: <input id="temperature" type="number" step="0.1" value="0.7"></label>
+      <label>Max Tokens: <input id="maxTokens" type="number" value="256"></label>
+    </div>
     <button onclick="sendPrompt()">Send</button>
     <div id="output">Response will appear here</div>
     <script src="renderer.js"></script>
