@@ -5,12 +5,11 @@ const path = require('path');
 const fs = require('fs');
 
 const store = new Store({ encryptionKey: 'dwani-secret-key' });
-const MAX_FILE_SIZE_MB = 10; // 10MB limit
-const MAX_CONCURRENT_PDFS = 5;
-const CACHE_TTL = 3600; // 1 hour in seconds
+const MAX_FILE_SIZE_MB = 10;
 const API_URL_PDF = 'http://0.0.0.0:18889/process_pdf';
 const API_URL_MESSAGE = 'http://0.0.0.0:18889/process_message';
 const API_URL_HEALTH = 'http://0.0.0.0:18889/health';
+const CACHE_TTL = 3600;
 
 let mainWindow;
 
@@ -35,8 +34,11 @@ app.whenReady().then(() => {
   app.quit();
 });
 
-// Validate PDF file
 function validatePdf(filePath) {
+  if (!filePath || typeof filePath !== 'string') {
+    console.error('Invalid file path:', filePath);
+    return { valid: false, error: 'Invalid file path' };
+  }
   if (!filePath.toLowerCase().endsWith('.pdf')) {
     return { valid: false, error: 'Invalid file type: Must be a PDF' };
   }
@@ -52,7 +54,6 @@ function validatePdf(filePath) {
   }
 }
 
-// Process single PDF
 async function processSinglePdf(filePath) {
   const validation = validatePdf(filePath);
   if (!validation.valid) {
@@ -69,11 +70,22 @@ async function processSinglePdf(filePath) {
     });
     return response.data.extracted_text || {};
   } catch (err) {
+    console.error(`Failed to extract text from ${filePath}:`, err.message);
     return { error: `Failed to extract text: ${err.message}` };
   }
 }
 
-// IPC Handlers
+ipcMain.handle('select-pdfs', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'PDFs', extensions: ['pdf'] }]
+  });
+  if (result.canceled) {
+    return { error: 'No PDF selected' };
+  }
+  return { pdfPath: result.filePaths[0] };
+});
+
 ipcMain.handle('health-check', async () => {
   try {
     const response = await axios.get(API_URL_HEALTH, { timeout: 30000 });
@@ -83,49 +95,40 @@ ipcMain.handle('health-check', async () => {
   }
 });
 
-ipcMain.handle('process-pdfs', async (event, { pdfPaths, sessionId }) => {
-  const validPaths = pdfPaths.filter(path => validatePdf(path).valid);
-  if (!validPaths.length) {
-    return { error: 'No valid PDFs provided' };
+ipcMain.handle('process-pdfs', async (event, { pdfPath, sessionId }) => {
+  console.log('Received pdfPath:', pdfPath);
+  console.log('Type of pdfPath:', typeof pdfPath);
+  if (!pdfPath || typeof pdfPath !== 'string') {
+    return { error: 'No valid PDF path provided' };
+  }
+  const validation = validatePdf(pdfPath);
+  if (!validation.valid) {
+    return { error: validation.error };
   }
 
-  // Generate cache key
-  const pdfHash = require('crypto').createHash('md5').update(validPaths.sort().join('')).digest('hex');
+  const pdfHash = require('crypto').createHash('md5').update(pdfPath).digest('hex');
   const sessionData = store.get(`sessions.${sessionId}`, {});
   const cached = sessionData.cache?.[pdfHash];
 
-  // Check cache
   if (cached && (Date.now() / 1000 - cached.timestamp) < CACHE_TTL) {
+    console.log(`Returning cached text for session ${sessionId}`);
     return { extractedText: cached.text };
   }
 
-  // Process PDFs concurrently
-  const chunkSize = MAX_CONCURRENT_PDFS;
-  const results = [];
-  for (let i = 0; i < validPaths.length; i += chunkSize) {
-    const chunk = validPaths.slice(i, i + chunkSize);
-    const chunkResults = await Promise.all(chunk.map(processSinglePdf));
-    results.push(...chunkResults);
+  const result = await processSinglePdf(pdfPath);
+  if (result.error) {
+    return { error: result.error };
   }
 
-  const extractedText = {};
-  const errors = [];
-  results.forEach((result, index) => {
-    if (result.error) {
-      errors.push(`Error in ${validPaths[index]}: ${result.error}`);
-    } else {
-      Object.assign(extractedText, result);
-    }
-  });
-
-  // Update cache
+  const extractedText = result;
   store.set(`sessions.${sessionId}`, {
     cache: { [pdfHash]: { text: extractedText, timestamp: Date.now() / 1000 } },
     timestamp: Date.now() / 1000,
-    pdfPaths: validPaths
+    pdfPath: pdfPath,
+    chatHistory: store.get(`sessions.${sessionId}.chatHistory`, [])
   });
 
-  return { extractedText, errors: errors.length ? errors : null };
+  return { extractedText };
 });
 
 ipcMain.handle('process-message', async (event, { prompt, extractedText, sessionId }) => {
@@ -140,6 +143,9 @@ ipcMain.handle('process-message', async (event, { prompt, extractedText, session
       prompt,
       extracted_text: JSON.stringify(extractedText)
     }, { timeout: 90000 });
+    const chatHistory = store.get(`sessions.${sessionId}.chatHistory`, []);
+    chatHistory.push({ role: 'user', content: prompt }, { role: 'assistant', content: response.data.response || response.data.error });
+    store.set(`sessions.${sessionId}.chatHistory`, chatHistory);
     return response.data;
   } catch (err) {
     return { error: `Failed to process message: ${err.message}` };
@@ -147,7 +153,7 @@ ipcMain.handle('process-message', async (event, { prompt, extractedText, session
 });
 
 ipcMain.handle('clear-session', async (event, sessionId) => {
-  store.delete(`sessions.${sessionId}`);
+  store.set(`sessions.${sessionId}`, { chatHistory: [] });
   return { success: true };
 });
 

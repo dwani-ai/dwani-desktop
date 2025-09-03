@@ -1,7 +1,7 @@
 const sessionId = `session_${Date.now()}`;
 let chatHistory = [];
 let extractedText = {};
-let pdfFiles = [];
+let pdfFile = '';
 
 async function saveConfig() {
   const apiEndpoint = document.getElementById('apiEndpoint').value;
@@ -16,24 +16,28 @@ async function healthCheck() {
   if (result.error) {
     alert(`API Health Check Failed: ${result.error}`);
   } else {
-    alert('API is healthy');
+    console.log('API is healthy:', result);
   }
 }
 
-async function processPdfs() {
-  const pdfInput = document.getElementById('pdf-input');
-  pdfFiles = Array.from(pdfInput.files).map(file => file.path);
-  if (!pdfFiles.length) {
-    alert('Please upload at least one PDF');
+async function selectPdfs() {
+  const result = await window.api.selectPdfs();
+  if (result.error) {
+    alert(result.error);
     return;
   }
-  const result = await window.api.processPdfs(pdfFiles, sessionId);
-  if (result.error) {
-    alert(`Error: ${result.error}`);
-  } else if (result.errors) {
-    alert(`Some PDFs failed: ${result.errors.join(', ')}`);
+  pdfFile = result.pdfPath && typeof result.pdfPath === 'string' ? result.pdfPath : '';
+  console.log('Selected PDF path:', pdfFile);
+  if (!pdfFile) {
+    alert('No valid PDF file selected');
+    return;
   }
-  extractedText = result.extractedText || {};
+  document.getElementById('selected-file').innerText = `Selected: ${pdfFile.split(/[\\/]/).pop()}`;
+  const processResult = await window.api.processPdfs(pdfFile, sessionId);
+  if (processResult.error) {
+    alert(`Error: ${processResult.error}`);
+  }
+  extractedText = processResult.extractedText || {};
   updateChatDisplay();
 }
 
@@ -45,7 +49,7 @@ async function sendPrompt() {
     return;
   }
   if (!Object.keys(extractedText).length) {
-    chatHistory.push({ role: 'user', content: prompt }, { role: 'assistant', content: '⚠️ Please upload at least one PDF first!' });
+    chatHistory.push({ role: 'user', content: prompt }, { role: 'assistant', content: '⚠️ Please upload a PDF first!' });
     updateChatDisplay();
     return;
   }
@@ -75,15 +79,14 @@ async function clearChat() {
 async function newChat() {
   chatHistory = [];
   extractedText = {};
-  pdfFiles = [];
-  document.getElementById('pdf-input').value = '';
+  pdfFile = '';
+  document.getElementById('selected-file').innerText = '';
   await window.api.clearSession(sessionId);
   updateChatDisplay();
 }
 
-// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pdf-input').addEventListener('change', processPdfs);
+  document.getElementById('pdf-input').addEventListener('click', selectPdfs);
   healthCheck();
   document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://0.0.0.0:18889';
   document.getElementById('model').value = localStorage.getItem('model') || 'gemma3';

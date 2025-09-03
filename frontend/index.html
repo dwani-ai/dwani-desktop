@@ -16,7 +16,7 @@
     </style>
   </head>
   <body>
-    <h1>📄 Document Chat - Query Your PDFs</h1>
+    <h1>📄 Document Chat - Query Your PDF</h1>
     <div style="display: flex;">
       <div style="flex: 3;">
         <div id="settings">
@@ -27,7 +27,8 @@
           </select></label><br>
           <button onclick="saveConfig()">Save Config</button>
         </div>
-        <input type="file" id="pdf-input" accept=".pdf" multiple>
+        <button id="pdf-input" onclick="selectPdfs()">Select PDF</button>
+        <div id="selected-file"></div>
         <div id="chatbot"></div>
         <textarea id="input" placeholder="Ask something about the document..."></textarea>
         <div id="buttons">
@@ -39,11 +40,11 @@
       <div style="flex: 1; margin-left: 20px;">
         <h3>Instructions</h3>
         <p>
-          1. Upload one or more PDF documents (max 10MB each).<br>
-          2. Ask questions about the documents in the chat box.<br>
-          3. The assistant will respond based on the documents' content.<br>
+          1. Click 'Select PDF' to upload a PDF document (max 10MB).<br>
+          2. Ask questions about the document in the chat box.<br>
+          3. The assistant will respond based on the document's content.<br>
           4. Use 'Clear Chat' to reset the conversation history.<br>
-          5. Use 'New Chat' to start a new session (clears chat and PDFs).
+          5. Use 'New Chat' to start a new session (clears chat and PDF).
         </p>
       </div>
     </div>
