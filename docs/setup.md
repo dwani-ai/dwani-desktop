@@ -19,3 +19,5 @@ npm install node-addon-api
 
 npm install node-gyp
 node-gyp configure build
+
+npx electron-builder --win --mac --linux

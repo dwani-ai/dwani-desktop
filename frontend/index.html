@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>GPT Desktop App</title>
+    <style>
+      body { font-family: Arial; padding: 20px; }
+      #input { width: 100%; height: 100px; }
+      #output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>GPT Desktop App</h1>
+    <textarea id="input" placeholder="Enter your prompt"></textarea>
+    <button onclick="sendPrompt()">Send</button>
+    <div id="output">Response will appear here</div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
