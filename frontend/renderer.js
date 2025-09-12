@@ -1,16 +1,14 @@
-const { ipcRenderer } = require('electron');
 const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 let chatHistory = [];
 let extractedText = {};
-let pdfFile = '';
+let pdfFile = ''; // Ensure global declaration
 
 async function saveConfig() {
   const apiEndpoint = document.getElementById('apiEndpoint').value;
   const model = document.getElementById('model').value;
   localStorage.setItem('apiEndpoint', apiEndpoint);
   localStorage.setItem('model', model);
-  await window.api.updateConfig({ apiEndpoint, model }); // Send to main
-  setStatus('Configuration saved and applied');
+  setStatus('Configuration saved');
 }
 
 function toggleSettings() {
@@ -19,11 +17,10 @@ function toggleSettings() {
 }
 
 async function healthCheck() {
-  setStatus('Checking API health...');
   const result = await window.api.healthCheck();
   if (result.error) {
     setStatus(`API unavailable: ${result.error}`);
-    ipcRenderer.send('show-error', 'API Error', result.error);
+    showError('API Error', `API Health Check Failed: ${result.error}`);
   } else {
     setStatus('Ready to use!');
   }
@@ -35,18 +32,26 @@ async function selectPdfs() {
   document.getElementById('loading').style.display = 'block';
   setStatus('Selecting PDF...');
   try {
+    console.log('Calling window.api.selectPdfs...');
     const result = await window.api.selectPdfs();
+    console.log('Select PDFs result:', result);
     if (result.error) {
       setStatus(result.error);
-      ipcRenderer.send('show-error', 'Selection Error', result.error);
+      showError('Selection Error', result.error);
       return;
     }
-    pdfFile = result.pdfPaths?.[0] || '';
-    if (!pdfFile) {
+    if (!result.pdfPaths || !result.pdfPaths.length) {
       setStatus('No valid PDF selected');
+      showError('Selection Error', 'No PDF file selected');
       return;
     }
+    pdfFile = result.pdfPaths[0]; // Assign to global pdfFile
+    console.log('Selected PDF:', pdfFile);
     await processPdf(pdfFile);
+  } catch (err) {
+    console.error('Error in selectPdfs:', err);
+    setStatus('Failed to select PDF');
+    showError('Selection Error', err.message);
   } finally {
     document.getElementById('loading').style.display = 'none';
     pdfButton.disabled = false;
@@ -54,20 +59,25 @@ async function selectPdfs() {
 }
 
 async function processPdf(pdfPath) {
+  console.log('Starting processPdf with:', pdfPath);
   document.getElementById('loading').style.display = 'block';
   setStatus('Processing PDF...');
   try {
-    document.getElementById('selected-file').innerText = `Selected: ${path.basename(pdfPath)}`;
+    document.getElementById('selected-file').innerText = `Selected: ${pdfPath.split(/[\\/]/).pop()}`;
+    console.log('Calling window.api.processPdfs with:', { pdfPath, sessionId });
     const processResult = await window.api.processPdfs(pdfPath, sessionId);
+    console.log('Process PDFs result:', processResult);
     if (processResult.error) {
       setStatus(`Error: ${processResult.error}`);
-      ipcRenderer.send('show-error', 'Processing Error', processResult.error);
+      showError('Processing Error', processResult.error);
       return;
     }
     extractedText = processResult.extractedText || {};
-    sessionId = processResult.sessionId || sessionId; // Update if new
     setStatus('PDF processed successfully!');
-    console.log('Extracted text keys:', Object.keys(extractedText));
+  } catch (err) {
+    console.error('Error in processPdf:', err);
+    setStatus('Failed to process PDF');
+    showError('Processing Error', err.message);
   } finally {
     document.getElementById('loading').style.display = 'none';
   }
@@ -89,17 +99,19 @@ async function sendPrompt() {
   }
   chatHistory.push({ role: 'user', content: prompt });
   updateChatDisplay();
-  document.getElementById('input').value = '';
   document.getElementById('loading').style.display = 'block';
   setStatus('Processing question...');
   try {
+    console.log('Calling window.api.processMessage with:', { prompt, sessionId });
     const result = await window.api.processMessage(prompt, extractedText, sessionId);
-    chatHistory.push({ role: 'assistant', content: result.response || result.error || 'No response' });
-    sessionId = result.sessionId || sessionId;
+    console.log('Process message result:', result);
+    chatHistory.push({ role: 'assistant', content: result.response || result.error });
+    document.getElementById('input').value = '';
     setStatus('');
   } catch (err) {
+    console.error('Error in sendPrompt:', err);
     setStatus('Failed to process question');
-    chatHistory.push({ role: 'assistant', content: `⚠️ Error: ${err.message}` });
+    chatHistory.push({ role: 'assistant', content: '⚠️ Error processing question' });
   } finally {
     document.getElementById('loading').style.display = 'none';
     updateChatDisplay();
@@ -132,18 +144,20 @@ function updateChatDisplay() {
 }
 
 function setStatus(message) {
+  console.log('Status:', message); // Log status updates
   document.getElementById('status').innerText = message;
-  console.log('Status:', message); // Log to console
+}
+
+function showError(title, message) {
+  console.log('Showing error:', title, message);
+  alert(`${title}: ${message}`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Load saved config
   document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://0.0.0.0:18889';
   document.getElementById('model').value = localStorage.getItem('model') || 'gemma3';
-  saveConfig(); // Apply initial config
   healthCheck();
 
-  // Drag-and-drop handling in renderer (fixed for path extraction)
   const dropZone = document.getElementById('dropZone');
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -155,30 +169,18 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf') {
-      console.log('Dropped file:', file.name, 'Raw path:', file.path); // Likely undefined
-      const pdfPath = window.api.webUtils.getPathForFile(file); // Fix: Get real path
-      console.log('Extracted path:', pdfPath);
-      if (pdfPath) {
-        processPdf(pdfPath);
-      } else {
-        setStatus('Failed to get file path. Try "Select PDF".');
-        ipcRenderer.send('show-error', 'Drop Error', 'Could not extract file path.');
-      }
-    } else {
-      setStatus('Please drop a valid PDF file.');
-    }
+    const pdfPath = e.dataTransfer.files[0]?.path;
+    console.log('Dropped PDF:', pdfPath);
+    if (pdfPath) processPdf(pdfPath);
   });
 
-  // Fallback listener for main-sent drops (if needed)
-  ipcRenderer.on('pdf-dropped', (event, data) => {
-    console.log('Received drop from main:', data.pdfPath);
-    processPdf(data.pdfPath);
+  window.api.onPdfDropped((pdfPath) => {
+    console.log('Received pdf-dropped event:', pdfPath);
+    processPdf(pdfPath);
   });
 
-  ipcRenderer.on('show-error', (event, title, message) => {
-    setStatus(`${title}: ${message}`);
-    alert(`${title}: ${message}`);
+  // Listen for show-error events from main process
+  window.api.onShowError((title, message) => {
+    showError(title, message);
   });
 });
