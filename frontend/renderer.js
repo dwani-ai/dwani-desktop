@@ -9,7 +9,8 @@ async function saveConfig() {
   const model = document.getElementById('model').value;
   localStorage.setItem('apiEndpoint', apiEndpoint);
   localStorage.setItem('model', model);
-  setStatus('Configuration saved');
+  await window.api.updateConfig({ apiEndpoint, model }); // Send to main
+  setStatus('Configuration saved and applied');
 }
 
 function toggleSettings() {
@@ -18,10 +19,11 @@ function toggleSettings() {
 }
 
 async function healthCheck() {
+  setStatus('Checking API health...');
   const result = await window.api.healthCheck();
   if (result.error) {
     setStatus(`API unavailable: ${result.error}`);
-    ipcRenderer.send('show-error', 'API Error', `API Health Check Failed: ${result.error}`);
+    ipcRenderer.send('show-error', 'API Error', result.error);
   } else {
     setStatus('Ready to use!');
   }
@@ -55,7 +57,7 @@ async function processPdf(pdfPath) {
   document.getElementById('loading').style.display = 'block';
   setStatus('Processing PDF...');
   try {
-    document.getElementById('selected-file').innerText = `Selected: ${pdfPath.split(/[\\/]/).pop()}`;
+    document.getElementById('selected-file').innerText = `Selected: ${path.basename(pdfPath)}`;
     const processResult = await window.api.processPdfs(pdfPath, sessionId);
     if (processResult.error) {
       setStatus(`Error: ${processResult.error}`);
@@ -63,7 +65,9 @@ async function processPdf(pdfPath) {
       return;
     }
     extractedText = processResult.extractedText || {};
+    sessionId = processResult.sessionId || sessionId; // Update if new
     setStatus('PDF processed successfully!');
+    console.log('Extracted text keys:', Object.keys(extractedText));
   } finally {
     document.getElementById('loading').style.display = 'none';
   }
@@ -85,16 +89,17 @@ async function sendPrompt() {
   }
   chatHistory.push({ role: 'user', content: prompt });
   updateChatDisplay();
+  document.getElementById('input').value = '';
   document.getElementById('loading').style.display = 'block';
   setStatus('Processing question...');
   try {
     const result = await window.api.processMessage(prompt, extractedText, sessionId);
-    chatHistory.push({ role: 'assistant', content: result.response || result.error });
-    document.getElementById('input').value = '';
+    chatHistory.push({ role: 'assistant', content: result.response || result.error || 'No response' });
+    sessionId = result.sessionId || sessionId;
     setStatus('');
   } catch (err) {
     setStatus('Failed to process question');
-    chatHistory.push({ role: 'assistant', content: '⚠️ Error processing question' });
+    chatHistory.push({ role: 'assistant', content: `⚠️ Error: ${err.message}` });
   } finally {
     document.getElementById('loading').style.display = 'none';
     updateChatDisplay();
@@ -128,13 +133,17 @@ function updateChatDisplay() {
 
 function setStatus(message) {
   document.getElementById('status').innerText = message;
+  console.log('Status:', message); // Log to console
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Load saved config
   document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://0.0.0.0:18889';
   document.getElementById('model').value = localStorage.getItem('model') || 'gemma3';
+  saveConfig(); // Apply initial config
   healthCheck();
 
+  // Drag-and-drop handling in renderer (fixed for path extraction)
   const dropZone = document.getElementById('dropZone');
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -146,13 +155,30 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragover');
-    const pdfPath = e.dataTransfer.files[0]?.path;
-    if (pdfPath) processPdf(pdfPath);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') {
+      console.log('Dropped file:', file.name, 'Raw path:', file.path); // Likely undefined
+      const pdfPath = window.api.webUtils.getPathForFile(file); // Fix: Get real path
+      console.log('Extracted path:', pdfPath);
+      if (pdfPath) {
+        processPdf(pdfPath);
+      } else {
+        setStatus('Failed to get file path. Try "Select PDF".');
+        ipcRenderer.send('show-error', 'Drop Error', 'Could not extract file path.');
+      }
+    } else {
+      setStatus('Please drop a valid PDF file.');
+    }
   });
 
-  window.api.onPdfDropped((pdfPath) => processPdf(pdfPath));
+  // Fallback listener for main-sent drops (if needed)
+  ipcRenderer.on('pdf-dropped', (event, data) => {
+    console.log('Received drop from main:', data.pdfPath);
+    processPdf(data.pdfPath);
+  });
 
   ipcRenderer.on('show-error', (event, title, message) => {
+    setStatus(`${title}: ${message}`);
     alert(`${title}: ${message}`);
   });
 });
