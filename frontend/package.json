@@ -1,0 +1,45 @@
+{
+  "name": "dwani-desktop",
+  "version": "0.0.1",
+  "main": "main.js",
+  "description": "dwani.ai - Discovery - Document Analytics",
+  "scripts": {
+    "start": "electron .",
+    "build": {
+      "appId": "com.dwani.desktop.app",
+      "files": [
+        "main.js",
+        "preload.js",
+        "index.html",
+        "renderer.js"
+      ],
+      "win": {
+        "icon": "icon.png",
+        "target": "nsis"
+      },
+      "mac": {
+        "target": "dmg"
+      },
+      "linux": {
+        "icon": "icon.png",
+        "category": "Productivity",
+        "target": [
+          "AppImage",
+          "deb"
+        ]
+      }
+    },
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "dwani.ai",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "axios-retry": "^4.5.0",
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}

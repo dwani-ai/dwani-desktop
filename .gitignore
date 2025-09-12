@@ -14,7 +14,8 @@ gemma-3n-E2B-it-ONNX/
 jfk.wav
 # C extensions
 *.so
-
+llama.cpp
+node_modules
 *.jpg
 # Distribution / packaging
 .Python
