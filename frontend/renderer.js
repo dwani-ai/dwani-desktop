@@ -1,4 +1,5 @@
-const sessionId = `session_${Date.now()}`;
+const { ipcRenderer } = require('electron');
+const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 let chatHistory = [];
 let extractedText = {};
 let pdfFile = '';
@@ -8,15 +9,21 @@ async function saveConfig() {
   const model = document.getElementById('model').value;
   localStorage.setItem('apiEndpoint', apiEndpoint);
   localStorage.setItem('model', model);
-  alert('Configuration saved');
+  setStatus('Configuration saved');
+}
+
+function toggleSettings() {
+  const settings = document.getElementById('settings');
+  settings.classList.toggle('visible');
 }
 
 async function healthCheck() {
   const result = await window.api.healthCheck();
   if (result.error) {
-    alert(`API Health Check Failed: ${result.error}`);
+    setStatus(`API unavailable: ${result.error}`);
+    ipcRenderer.send('show-error', 'API Error', `API Health Check Failed: ${result.error}`);
   } else {
-    console.log('API is healthy:', result);
+    setStatus('Ready to use!');
   }
 }
 
@@ -24,50 +31,89 @@ async function selectPdfs() {
   const pdfButton = document.getElementById('pdf-input');
   pdfButton.disabled = true;
   document.getElementById('loading').style.display = 'block';
+  setStatus('Selecting PDF...');
   try {
     const result = await window.api.selectPdfs();
     if (result.error) {
-      alert(result.error);
+      setStatus(result.error);
+      ipcRenderer.send('show-error', 'Selection Error', result.error);
       return;
     }
-    pdfFile = result.pdfPath && typeof result.pdfPath === 'string' ? result.pdfPath : '';
-    console.log('Selected PDF path:', pdfFile);
+    pdfFile = result.pdfPaths?.[0] || '';
     if (!pdfFile) {
-      alert('No valid PDF file selected');
+      setStatus('No valid PDF selected');
       return;
     }
-    document.getElementById('selected-file').innerText = `Selected: ${pdfFile.split(/[\\/]/).pop()}`;
-    const processResult = await window.api.processPdfs(pdfFile, sessionId);
-    if (processResult.error) {
-      alert(`Error: ${processResult.error}`);
-      return;
-    }
-    extractedText = processResult.extractedText || {};
-    updateChatDisplay();
+    await processPdf(pdfFile);
   } finally {
     document.getElementById('loading').style.display = 'none';
     pdfButton.disabled = false;
   }
 }
 
+async function processPdf(pdfPath) {
+  document.getElementById('loading').style.display = 'block';
+  setStatus('Processing PDF...');
+  try {
+    document.getElementById('selected-file').innerText = `Selected: ${pdfPath.split(/[\\/]/).pop()}`;
+    const processResult = await window.api.processPdfs(pdfPath, sessionId);
+    if (processResult.error) {
+      setStatus(`Error: ${processResult.error}`);
+      ipcRenderer.send('show-error', 'Processing Error', processResult.error);
+      return;
+    }
+    extractedText = processResult.extractedText || {};
+    setStatus('PDF processed successfully!');
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
 async function sendPrompt() {
-  const prompt = document.getElementById('input').value;
-  if (!prompt.trim()) {
-    chatHistory.push({ role: 'user', content: prompt }, { role: 'assistant', content: '⚠️ Please enter a valid question!' });
+  const prompt = document.getElementById('input').value.trim();
+  if (!prompt) {
+    setStatus('Please enter a question');
+    chatHistory.push({ role: 'assistant', content: '⚠️ Please enter a valid question!' });
     updateChatDisplay();
     return;
   }
   if (!Object.keys(extractedText).length) {
-    chatHistory.push({ role: 'user', content: prompt }, { role: 'assistant', content: '⚠️ Please upload a PDF first!' });
+    setStatus('Please upload a PDF first');
+    chatHistory.push({ role: 'assistant', content: '⚠️ Please upload a PDF first!' });
     updateChatDisplay();
     return;
   }
   chatHistory.push({ role: 'user', content: prompt });
   updateChatDisplay();
-  document.getElementById('input').value = '';
-  const result = await window.api.processMessage(prompt, extractedText, sessionId);
-  chatHistory.push({ role: 'assistant', content: result.response || result.error });
+  document.getElementById('loading').style.display = 'block';
+  setStatus('Processing question...');
+  try {
+    const result = await window.api.processMessage(prompt, extractedText, sessionId);
+    chatHistory.push({ role: 'assistant', content: result.response || result.error });
+    document.getElementById('input').value = '';
+    setStatus('');
+  } catch (err) {
+    setStatus('Failed to process question');
+    chatHistory.push({ role: 'assistant', content: '⚠️ Error processing question' });
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    updateChatDisplay();
+  }
+}
+
+function suggestPrompt(prompt) {
+  document.getElementById('input').value = prompt;
+  sendPrompt();
+}
+
+async function resetChat() {
+  chatHistory = [];
+  extractedText = {};
+  pdfFile = '';
+  document.getElementById('selected-file').innerText = '';
+  await window.api.clearSession(sessionId);
   updateChatDisplay();
+  setStatus('Chat reset. Select a new PDF to start.');
 }
 
 function updateChatDisplay() {
@@ -80,23 +126,33 @@ function updateChatDisplay() {
   chatbot.scrollTop = chatbot.scrollHeight;
 }
 
-async function clearChat() {
-  chatHistory = [];
-  updateChatDisplay();
-}
-
-async function newChat() {
-  chatHistory = [];
-  extractedText = {};
-  pdfFile = '';
-  document.getElementById('selected-file').innerText = '';
-  await window.api.clearSession(sessionId);
-  updateChatDisplay();
+function setStatus(message) {
+  document.getElementById('status').innerText = message;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('pdf-input').addEventListener('click', selectPdfs);
-  healthCheck();
   document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://0.0.0.0:18889';
   document.getElementById('model').value = localStorage.getItem('model') || 'gemma3';
+  healthCheck();
+
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const pdfPath = e.dataTransfer.files[0]?.path;
+    if (pdfPath) processPdf(pdfPath);
+  });
+
+  window.api.onPdfDropped((pdfPath) => processPdf(pdfPath));
+
+  ipcRenderer.on('show-error', (event, title, message) => {
+    alert(`${title}: ${message}`);
+  });
 });
