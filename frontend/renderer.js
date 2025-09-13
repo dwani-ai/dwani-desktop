@@ -1,7 +1,7 @@
 const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 let chatHistory = [];
 let extractedText = {};
-let pdfFile = ''; // Ensure global declaration
+let pdfFile = '';
 
 async function saveConfig() {
   const apiEndpoint = document.getElementById('apiEndpoint').value;
@@ -9,6 +9,7 @@ async function saveConfig() {
   localStorage.setItem('apiEndpoint', apiEndpoint);
   localStorage.setItem('model', model);
   setStatus('Configuration saved');
+  await window.api.updateConfig({ apiEndpoint, model }); // Update model in main process
 }
 
 function toggleSettings() {
@@ -45,7 +46,7 @@ async function selectPdfs() {
       showError('Selection Error', 'No PDF file selected');
       return;
     }
-    pdfFile = result.pdfPaths[0]; // Assign to global pdfFile
+    pdfFile = result.pdfPaths[0];
     console.log('Selected PDF:', pdfFile);
     await processPdf(pdfFile);
   } catch (err) {
@@ -144,7 +145,7 @@ function updateChatDisplay() {
 }
 
 function setStatus(message) {
-  console.log('Status:', message); // Log status updates
+  console.log('Status:', message);
   document.getElementById('status').innerText = message;
 }
 
@@ -154,7 +155,7 @@ function showError(title, message) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://0.0.0.0:18889';
+  document.getElementById('apiEndpoint').value = localStorage.getItem('apiEndpoint') || 'http://localhost:18889';
   document.getElementById('model').value = localStorage.getItem('model') || 'gemma3';
   healthCheck();
 
@@ -179,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     processPdf(pdfPath);
   });
 
-  // Listen for show-error events from main process
   window.api.onShowError((title, message) => {
     showError(title, message);
   });
