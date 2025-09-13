@@ -28,7 +28,7 @@ app.whenReady().then(() => {
       },
     });
     mainWindow.loadFile('index.html');
-    mainWindow.webContents.openDevTools(); // Auto-open DevTools for debugging
+    //mainWindow.webContents.openDevTools(); // Auto-open DevTools for debugging
 
     // Enable drag-and-drop (fallback, but primary handling in renderer)
     mainWindow.webContents.on('will-prevent-unload', (event) => event.preventDefault());
