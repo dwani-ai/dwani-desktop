@@ -1,57 +1,68 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Dwani Desktop</title>
-    <style>
-      body { font-family: Arial; padding: 20px; max-width: 1200px; margin: auto; }
-      #chatbot { height: calc(100vh - 200px); max-height: 800px; border: 1px solid #ccc; overflow-y: auto; padding: 10px; }
-      .message { margin: 10px; padding: 10px; border-radius: 5px; }
-      .user { background: #e6f3ff; }
-      .assistant { background: #f0f0f0; }
-      #input { width: 100%; height: 100px; resize: none; }
-      #pdf-input { margin: 10px 0; }
-      #settings { margin: 20px 0; }
-      #instructions { margin: 20px 0; }
-      #buttons { margin: 10px 0; }
-      #loading { display: none; margin: 10px 0; color: #555; }
-      #pdf-input:disabled { opacity: 0.5; cursor: not-allowed; }
-    </style>
-  </head>
-  <body>
-    <h1>📄 Document Chat - Query Your PDF</h1>
-    <div style="display: flex;">
-      <div style="flex: 3;">
-        <div id="settings">
-          <label>API Endpoint: <input id="apiEndpoint" value="http://0.0.0.0:18889"></label><br>
-          <label>Model: <select id="model">
-            <option value="gemma3">gemma3</option>
-            <option value="gpt-oss">gpt-oss</option>
-          </select></label><br>
-          <button onclick="saveConfig()">Save Config</button>
-        </div>
-        <button id="pdf-input" onclick="selectPdfs()">Select PDF</button>
-        <div id="loading">Processing PDF...</div>
-        <div id="selected-file"></div>
-        <div id="chatbot"></div>
-        <textarea id="input" placeholder="Ask something about the document..."></textarea>
-        <div id="buttons">
-          <button onclick="sendPrompt()">Send</button>
-          <button onclick="clearChat()">Clear Chat</button>
-          <button onclick="newChat()">New Chat</button>
-        </div>
+<head>
+  <title>Dwani Desktop</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: auto; }
+    .container { display: flex; gap: 20px; }
+    .main { flex: 3; }
+    .sidebar { flex: 1; }
+    #chatbot { height: calc(100vh - 300px); max-height: 600px; border: 1px solid #ccc; overflow-y: auto; padding: 10px; }
+    .message { margin: 10px; padding: 10px; border-radius: 5px; }
+    .user { background: #e6f3ff; }
+    .assistant { background: #f0f0f0; }
+    #input { width: 100%; height: 80px; resize: none; margin: 10px 0; }
+    #dropZone { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 10px 0; cursor: pointer; }
+    #dropZone.dragover { border-color: #007bff; background: #e6f3ff; }
+    #status { margin: 10px 0; color: #555; }
+    #loading { display: none; margin: 10px 0; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    button { padding: 8px 16px; margin: 5px; }
+    #settings { display: none; margin: 10px 0; }
+    #settings.visible { display: block; }
+    #selected-file { margin: 10px 0; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="main">
+      <h1>📄 Document Chat</h1>
+      <button onclick="toggleSettings()">⚙️ Settings</button>
+      <div id="settings">
+        <label>API Endpoint: <input id="apiEndpoint" value="http://0.0.0.0:18889"></label><br>
+        <label>Model: <select id="model">
+          <option value="gemma3">gemma3</option>
+          <option value="gpt-oss">gpt-oss</option>
+        </select></label><br>
+        <button onclick="saveConfig()">Save Config</button>
       </div>
-      <div style="flex: 1; margin-left: 20px;">
-        <h3>Instructions</h3>
-        <p>
-          1. Click 'Select PDF' to upload a PDF document (max 10MB).<br>
-          2. Wait for the PDF to process (a loading message will appear).<br>
-          3. Ask questions about the document in the chat box.<br>
-          4. The assistant will respond based on the document's content.<br>
-          5. Use 'Clear Chat' to reset the conversation history.<br>
-          6. Use 'New Chat' to start a new session (clears chat and PDF).
-        </p>
+      <div id="dropZone">Drag and drop a PDF here or <button id="pdf-input" onclick="selectPdfs()">Select PDF</button></div>
+      <div id="status"></div>
+      <div id="loading"><span class="spinner"></span> Processing...</div>
+      <div id="selected-file"></div>
+      <div id="chatbot"></div>
+      <div>
+        <button onclick="suggestPrompt('Summarize the document')">Summarize</button>
+        <button onclick="suggestPrompt('What are the key points?')">Key Points</button>
+      </div>
+      <textarea id="input" placeholder="Ask something about the document..."></textarea>
+      <div>
+        <button onclick="sendPrompt()">Send</button>
+        <button onclick="resetChat()">Reset</button>
       </div>
     </div>
-    <script src="renderer.js"></script>
-  </body>
+    <div class="sidebar">
+      <h3>Instructions</h3>
+      <p>
+        1. Drag and drop a PDF or click "Select PDF" (max 10MB).<br>
+        2. Wait for the PDF to process (see loading spinner).<br>
+        3. Ask questions about the PDF or use suggestion buttons.<br>
+        4. Click "Reset" to start over with a new PDF and chat.<br>
+        <em>Check console (DevTools) for logs if issues occur.</em>
+      </p>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
 </html>
